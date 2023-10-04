@@ -78,11 +78,13 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
 
         // find name
         let mut name = None;
+        // idk how to get this to work :(
         // for sibling in outer_table.prev_siblings() {
+        //     sibling.
         //     match sibling.value().as_element() {
         //         None => {},
         //         Some(elem) => if elem.name() == "h3" {
-        //             println!("{:?}", ElementRef::try_from(elem));
+        //             println!("{:?}", elem);
         //             name = Some(elem.name().to_string());
         //             break;
         //         }

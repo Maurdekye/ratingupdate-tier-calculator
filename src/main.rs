@@ -15,7 +15,7 @@ struct Args {
     iters: usize,
 
     // Wait until the final scores settle this much before giving a final answer
-    #[arg(short, long, default_value_t = 0.00000f64)]
+    #[arg(short, long, default_value_t = 0.000001f64)]
     max_settle: f64
 }
 

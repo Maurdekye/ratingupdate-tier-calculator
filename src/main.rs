@@ -43,13 +43,9 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
     let cell_selector = Selector::parse("th,td span").unwrap();
     let cell_regex = Regex::new(r"(\d+(\.\d?))").unwrap();
 
-    println!("Fetching matchup content");
-
     let response = get(url);
     let body = response.expect("Failed to fetch site content").text().expect("Failed to decode site content");
     let dom = Html::parse_document(&body);
-
-    println!("Parsing");
 
     let mut matchup_sets = Vec::new();
 
@@ -156,7 +152,7 @@ fn main() {
 
     let matchup_sets = get_matchups_from_ratingupdate(args.url);
 
-    println!("Computing matchups for {} tables", matchup_sets.len());
+    println!("Computing tier lists for {} tables", matchup_sets.len());
 
     let tierlists = matchup_sets.into_iter().map(|(name, matchups)| {
         let (iters, grand_mult, tiers) = compute_tiers(&matchups, args.iters, args.max_settle, args.activation_cap);
@@ -175,6 +171,8 @@ fn main() {
     }
 
     let widest = sorted.iter().map(|(char, _)| char.len()).max().unwrap() + 2;
+
+    println!("Final results:");
 
     println!("");
     println!("{:width$}{}\n", "", tierlists.iter().map(|(name, _, _, _)| format!("{:>width$}", name.as_ref().unwrap_or(&"".to_string()), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);

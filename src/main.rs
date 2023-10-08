@@ -16,7 +16,15 @@ struct Args {
 
     // Wait until the final scores settle this much before giving a final answer
     #[arg(short, long, default_value_t = 0.000001f64)]
-    max_settle: f64
+    max_settle: f64,
+
+    // cap on activation function used in the tierlist algorithm
+    #[arg(short, long, default_value_t = 30f64)]
+    activation_cap: f64,
+    
+    // sort the rankings based on this matchup table
+    #[arg(short, long, default_value_t = 0usize)]
+    sort_by: usize
 }
 
 #[derive(Debug)]
@@ -70,7 +78,7 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
             let mut matchup: HashMap<String, f64> = HashMap::new();
             for (j, match_value) in data[i].iter().enumerate() {
                 if i != j {
-                    matchup.insert(characters[j].clone(), data[j][i]);
+                    matchup.insert(characters[j].clone(), *match_value);
                 }
             }
             matchups.insert(char.clone(), matchup);
@@ -97,7 +105,7 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
     matchup_sets
 }
 
-fn compute_tiers(data: MatchupData, max_iters: usize, max_settle: f64) -> (usize, f64, HashMap<String, f64>) {
+fn compute_tiers(data: &MatchupData, max_iters: usize, max_settle: f64, activation_cap: f64) -> (usize, f64, HashMap<String, f64>) {
     let mut scores: HashMap<String, f64> = HashMap::new();
     for char in data.matchups.keys() {
         scores.insert(char.clone(), 0f64);
@@ -105,10 +113,13 @@ fn compute_tiers(data: MatchupData, max_iters: usize, max_settle: f64) -> (usize
     let mut grand_mult = 1f64;
     let mut iters = 0usize;
 
+    let ln2cap = activation_cap.log2();
+    let activation = |x| activation_cap / (1f64 + 2f64.powf(ln2cap - x));
+
     loop {
         let mut new_scores: HashMap<String, f64> = HashMap::new();
         for char in scores.keys() {
-            let sub_scores = data.matchups.get(char).unwrap().iter().map(|(opponent, score)| (2f64*score - 1f64) * 2f64.powf(scores[opponent]) * grand_mult);
+            let sub_scores = data.matchups.get(char).unwrap().iter().map(|(opponent, score)| (2f64*score - 1f64) * activation(scores[opponent]) * grand_mult);
             new_scores.insert(char.clone(), sub_scores.sum());
         }
         scores = new_scores;
@@ -119,6 +130,9 @@ fn compute_tiers(data: MatchupData, max_iters: usize, max_settle: f64) -> (usize
             break;
         } else if iters >= max_iters {
             break;
+        } else if grand_mult.is_nan() {
+            println!("Something went wrong!!");
+            break;
         }
     }
 
@@ -128,20 +142,35 @@ fn compute_tiers(data: MatchupData, max_iters: usize, max_settle: f64) -> (usize
 fn main() {
     let args = Args::parse();
 
+    println!("Fetching matchup tables from {}", args.url);
+
     let matchup_sets = get_matchups_from_ratingupdate(args.url);
 
-    for (name, matchups) in matchup_sets {
-        match name {
-            Some(chart_name) => println!("{} tier list", chart_name),
-            None => {}
-        }
-        println!("Computing tiers...");
-        let (iters, grand_mult, tiers) = compute_tiers(matchups, args.iters, args.max_settle);
-        let mut sorted = tiers.into_iter().collect::<Vec<(String, f64)>>();
-        sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        println!("after {} iters, with a grand multiplier of {}:", iters, grand_mult);
-        for (char, score) in sorted {
-            println!("{}: {}", char, score);
-        }
+    println!("Computing matchups for {} tables", matchup_sets.len());
+
+    let tierlists = matchup_sets.into_iter().map(|(name, matchups)| {
+        let (iters, grand_mult, tiers) = compute_tiers(&matchups, args.iters, args.max_settle, args.activation_cap);
+        (name, iters, grand_mult, tiers)
+    }).collect::<Vec<(Option<String>, usize, f64, HashMap<String, f64>)>>();
+
+    println!("Compiling results");
+
+    let first_tierlist = tierlists[args.sort_by].3.clone();
+    let mut sorted = first_tierlist.into_iter().collect::<Vec<(String, f64)>>();
+    sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    let mut score_table: Vec<(String, Vec<f64>)> = Vec::new();
+    for (char, _) in sorted.iter() {
+        score_table.push((char.clone(), tierlists.iter().map(|(_, _, _, matchups)| matchups[char]).collect()));
     }
+
+    let widest = sorted.iter().map(|(char, _)| char.len()).max().unwrap() + 2;
+
+    println!("{:width$}{}\n", "Iters:", tierlists.iter().map(|(_, iters, _, _)| format!("{:>width$}", iters, width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
+    println!("{:width$}{}\n", "Grand mults:", tierlists.iter().map(|(_, _, mult, _)| format!("{:>width$}", format!("{:.4}", mult), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
+    println!("Rankings:");
+    for (char, scores) in score_table {
+        println!("{:width$}{}", char, scores.iter().map(|score| format!("{:>width$}", format!("{:.4}", score), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
+    }
+
 }

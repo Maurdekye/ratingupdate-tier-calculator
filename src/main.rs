@@ -53,7 +53,11 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
 
     let mut matchup_sets = Vec::new();
 
-    for outer_table in dom.select(&table_selector) {
+    // temporary hack :(
+    let header_selector = Selector::parse("h3").unwrap();
+    let headers = dom.select(&header_selector).map(|elem| elem.inner_html()).collect::<Vec<String>>();
+
+    for (j, outer_table) in dom.select(&table_selector).enumerate() {
         let mut characters: Vec<String> = Vec::new();
         let mut data: Vec<Vec<f64>> = Vec::new();
 
@@ -89,7 +93,8 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
         }
 
         // find name
-        let mut name = None;
+        // temporary hack :(
+        let name = headers.get(j).map(String::clone);
         // idk how to get this to work :(
         // for sibling in outer_table.prev_siblings() {
         //     sibling.
@@ -102,6 +107,7 @@ fn get_matchups_from_ratingupdate(url: String) -> Vec<(Option<String>, MatchupDa
         //         }
         //     }
         // }
+        
 
         matchup_sets.push((name, MatchupData { matchups: matchups }));
     }
@@ -171,6 +177,7 @@ fn main() {
     let widest = sorted.iter().map(|(char, _)| char.len()).max().unwrap() + 2;
 
     println!("");
+    println!("{:width$}{}\n", "", tierlists.iter().map(|(name, _, _, _)| format!("{:>width$}", name.as_ref().unwrap_or(&"".to_string()), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     println!("{:width$}{}\n", "Iters:", tierlists.iter().map(|(_, iters, _, _)| format!("{:>width$}", iters, width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     println!("{:width$}{}\n", "Grand mults:", tierlists.iter().map(|(_, _, mult, _)| format!("{:>width$}", format!("{:.4}", mult), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     println!("Rankings:");

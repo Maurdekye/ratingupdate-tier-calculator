@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 use clap::Parser;
 use reqwest::blocking::get;
 use scraper::{Html, Selector};
@@ -166,11 +166,16 @@ fn main() {
 
     let widest = sorted.iter().map(|(char, _)| char.len()).max().unwrap() + 2;
 
+    println!("");
     println!("{:width$}{}\n", "Iters:", tierlists.iter().map(|(_, iters, _, _)| format!("{:>width$}", iters, width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     println!("{:width$}{}\n", "Grand mults:", tierlists.iter().map(|(_, _, mult, _)| format!("{:>width$}", format!("{:.4}", mult), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     println!("Rankings:");
     for (char, scores) in score_table {
         println!("{:width$}{}", char, scores.iter().map(|score| format!("{:>width$}", format!("{:.4}", score), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     }
+
+    println!("\nPress enter to exit.");
+    let mut _buf = String::new();
+    io::stdin().read_line(&mut _buf).unwrap();
 
 }

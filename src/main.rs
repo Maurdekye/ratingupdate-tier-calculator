@@ -6,25 +6,29 @@ use regex::Regex;
 
 #[derive(Parser, Debug)]
 struct Args {
-    // Ratingupdate matchups url
+    /// Ratingupdate matchups url
     #[arg(short, long, default_value = "http://ratingupdate.info/matchups")]
     url: String,
 
-    // maximum iterations of the algorithm to run
+    /// maximum iterations of the algorithm to run
     #[arg(short, long, default_value_t = 5000)]
     iters: usize,
 
-    // Wait until the final scores settle this much before giving a final answer
+    /// Wait until the final scores settle this much before giving a final answer
     #[arg(short, long, default_value_t = 0.000001f64)]
     max_settle: f64,
 
-    // cap on activation function used in the tierlist algorithm
+    /// cap on activation function used in the tierlist algorithm
     #[arg(short, long, default_value_t = 30f64)]
     activation_cap: f64,
     
-    // sort the rankings based on this matchup table
+    /// sort the rankings based on this matchup table
     #[arg(short, long, default_value_t = 0usize)]
-    sort_by: usize
+    sort_by: usize,
+
+    /// don't pause at the end
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    no_pause: bool
 }
 
 #[derive(Debug)]
@@ -174,8 +178,9 @@ fn main() {
         println!("{:width$}{}", char, scores.iter().map(|score| format!("{:>width$}", format!("{:.4}", score), width=widest)).fold(String::new(), |a, b| a + &b), width=widest);
     }
 
-    println!("\nPress enter to exit.");
-    let mut _buf = String::new();
-    io::stdin().read_line(&mut _buf).unwrap();
-
+    if !args.no_pause {
+        println!("\nPress enter to exit.");
+        let mut _buf = String::new();
+        io::stdin().read_line(&mut _buf).unwrap();
+    }
 }
